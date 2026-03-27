@@ -4,34 +4,27 @@ from pydantic import BaseModel
 
 # --- Page Config ---
 st.set_page_config(page_title="Lab 6 - Responses API Agent", layout="centered")
-st.title("🔍 Research Assistant")
-st.caption("Powered by the OpenAI Responses API")
+st.title("Research Assistant")
 
-# --- OpenAI Client ---
 client = OpenAI(api_key=st.secrets["OPENAI_API_KEY"])
 
-# --- Sidebar Controls ---
 st.sidebar.header("Agent Settings")
 use_structured = st.sidebar.checkbox("Return structured summary")
 use_streaming = st.sidebar.checkbox("Enable streaming")
 
-# --- Pydantic Model for Structured Output ---
 class ResearchSummary(BaseModel):
     main_answer: str
     key_facts: list[str]
     source_hint: str
 
-# --- Session State Init ---
 if "last_response_id" not in st.session_state:
     st.session_state.last_response_id = None
 if "first_response_text" not in st.session_state:
     st.session_state.first_response_text = None
 
-# --- Helper: Build tools list ---
 def get_tools():
     return [{"type": "web_search_preview"}]
 
-# --- Helper: Make a Responses API call ---
 def call_responses_api(user_input, previous_response_id=None, structured=False, streaming=False):
     instructions = "You are a helpful research assistant. Always cite your sources when using web search."
 
@@ -45,35 +38,26 @@ def call_responses_api(user_input, previous_response_id=None, structured=False, 
         kwargs["previous_response_id"] = previous_response_id
 
     if structured:
-        # Part D: Structured output via parse()
         response = client.responses.parse(
-            **{k: v for k, v in kwargs.items() if k != "tools"},  # parse() doesn't support tools
-            text_format=ResearchSummary,
+            **{k: v for k, v in kwargs.items() if k != "tools"}, text_format=ResearchSummary,
         )
-        return response, None  # no stream
+        return response, None
 
     if streaming:
-        # Part E: Streaming
         stream = client.responses.create(**kwargs, stream=True)
         return None, stream
 
-    # Standard call
     response = client.responses.create(**kwargs)
     return response, None
 
 
-# ─────────────────────────────────────────────
-# PART A + C: Initial Question
-# ─────────────────────────────────────────────
 st.subheader("Ask a Question")
-st.caption("🌐 Web search is enabled — the agent can fetch current information.")
 
 with st.form("initial_form"):
     user_question = st.text_input("Your question:", placeholder="e.g. What are the latest AI news headlines?")
     submitted = st.form_submit_button("Ask")
 
 if submitted and user_question:
-    # Reset follow-up state on new question
     st.session_state.last_response_id = None
     st.session_state.first_response_text = None
 
@@ -116,13 +100,10 @@ if submitted and user_question:
             st.write(response.output_text)
 
 
-# ─────────────────────────────────────────────
-# PART B: Follow-Up Question
-# ─────────────────────────────────────────────
 if st.session_state.last_response_id:
     st.divider()
     st.subheader("Ask a Follow-Up Question")
-    st.info("The agent remembers your previous question — no need to repeat it.", icon="🧠")
+    st.info("The agent remembers your previous question so theres no need to repeat it.")
 
     with st.form("followup_form"):
         followup = st.text_input(
